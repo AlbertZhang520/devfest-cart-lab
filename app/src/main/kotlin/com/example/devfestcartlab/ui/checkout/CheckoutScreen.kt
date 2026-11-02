@@ -1,6 +1,8 @@
 package com.example.devfestcartlab.ui.checkout
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,13 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,22 +29,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.devfestcartlab.domain.CartItem
+import com.example.devfestcartlab.ui.theme.BrandBlue
+import com.example.devfestcartlab.ui.theme.CoralPrice
 import com.example.devfestcartlab.ui.theme.DevFestCartLabTheme
-import java.util.Locale
 
 /**
- * 购物车结算页（Workshop Level B 靶子）
+ * GDG DevFest Shanghai 2026 官方周边商城结算页（Workshop Level B 靶子）
  *
  * 当前已知 UI 缺陷（请配合 `skills/edge-to-edge/SKILL.md` 修复）：
  * 1. `MainActivity` 已启用 `enableEdgeToEdge()`，但本页面未使用 `Scaffold` 传递 `innerPadding`，
- *    也未对顶部标题栏、滚动列表 (`LazyColumn`) 与底部「立即结算」栏应用 `WindowInsets` / `safeDrawingPadding()`。
+ *    也未对顶部商城横幅、滚动列表 (`LazyColumn`) 与底部「立即结算」栏应用 `WindowInsets` / `safeDrawingPadding()`。
  * 2. 底部结算栏 (`checkout_bottom_bar`) 直接贴合屏幕物理底边 (`Alignment.BottomCenter`)，在全面屏手势导航或三键导航下与系统导航栏重叠。
  * 3. 订单备注输入框 (`OutlinedTextField`) 未处理软键盘 `imePadding()` / `WindowInsetsRulers.Ime`。
  */
@@ -56,7 +59,16 @@ fun CheckoutScreen(
     uiState = uiState,
     onSelectCoupon = viewModel::selectCoupon,
     onUpdateQuantity = viewModel::updateQuantity,
+    onToggleItemSelection = viewModel::toggleItemSelection,
+    onToggleSelectAll = viewModel::toggleSelectAll,
+    onCycleItemSpec = viewModel::cycleItemSpec,
+    onAddCatalogItem = viewModel::addCatalogItem,
+    onResetCart = viewModel::resetCart,
+    onSelectDeliveryMode = viewModel::selectDeliveryMode,
     onUpdatePromoNote = viewModel::updatePromoNote,
+    onAppendQuickNoteTag = viewModel::appendQuickNoteTag,
+    onSubmitOrder = viewModel::submitOrder,
+    onDismissOrderDialog = viewModel::dismissOrderDialog,
     modifier = modifier,
   )
 }
@@ -66,9 +78,25 @@ internal fun CheckoutContent(
   uiState: CheckoutUiState,
   onSelectCoupon: (String) -> Unit,
   onUpdateQuantity: (String, Int) -> Unit,
+  onToggleItemSelection: (String) -> Unit = {},
+  onToggleSelectAll: () -> Unit = {},
+  onCycleItemSpec: (String) -> Unit = {},
+  onAddCatalogItem: (String) -> Unit = {},
+  onResetCart: () -> Unit = {},
+  onSelectDeliveryMode: (DeliveryMode) -> Unit = {},
   onUpdatePromoNote: (String) -> Unit,
+  onAppendQuickNoteTag: (String) -> Unit = {},
+  onSubmitOrder: () -> Unit = {},
+  onDismissOrderDialog: () -> Unit = {},
   modifier: Modifier = Modifier,
 ) {
+  if (uiState.showOrderSubmittedDialog) {
+    OrderSubmittedSummaryDialog(
+      uiState = uiState,
+      onDismiss = onDismissOrderDialog,
+    )
+  }
+
   // BUG (Workshop Level B): 未使用 Scaffold innerPadding 或 WindowInsets 安全区，导致顶栏、列表与底部结算按钮被系统栏遮挡
   Box(
     modifier = modifier
@@ -79,58 +107,87 @@ internal fun CheckoutContent(
       modifier = Modifier
         .fillMaxSize()
         .testTag("checkout_item_list"),
-      contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+      contentPadding = PaddingValues(bottom = 16.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+      // 1. GDG DevFest Shanghai 商城沉浸式顶栏 + 满 200 打 8 折动态进度条
       item {
-        Text(
-          text = "DevFest 购物车结算",
-          style = MaterialTheme.typography.headlineSmall,
-          fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-          text = "全场满 ¥200 先享 8 折，再叠加优惠券（最低 ¥0.00 兜底）",
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        MallHeroBanner(
+          subtotal = uiState.breakdown.subtotal,
+          threshold = 200.0,
+          onResetCart = onResetCart,
         )
       }
 
+      // 2. 上海站会场自提 / 顺丰包邮切换卡片
+      item {
+        Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+          DeliveryAddressCard(
+            selectedMode = uiState.deliveryMode,
+            onSelectMode = onSelectDeliveryMode,
+          )
+        }
+      }
+
+      // 3. 购物车商品卡片列表
       items(uiState.items, key = { it.id }) { item ->
-        CartItemCard(
-          item = item,
-          onDecrease = { onUpdateQuantity(item.id, -1) },
-          onIncrease = { onUpdateQuantity(item.id, 1) },
-        )
+        Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+          MallMerchItemCard(
+            item = item,
+            isSelected = item.id in uiState.selectedItemIds,
+            selectedSpecIndex = uiState.selectedSpecs[item.id] ?: 0,
+            onToggleSelect = { onToggleItemSelection(item.id) },
+            onCycleSpec = { onCycleItemSpec(item.id) },
+            onDecrease = { onUpdateQuantity(item.id, -1) },
+            onIncrease = { onUpdateQuantity(item.id, 1) },
+          )
+        }
       }
 
-      item {
-        CouponSelectorSection(
-          coupons = uiState.availableCoupons,
-          selectedCouponId = uiState.selectedCouponId,
-          onSelectCoupon = onSelectCoupon,
-        )
+      // 4. 上海站人气周边一键凑单横滑区
+      if (uiState.addonCandidates.isNotEmpty()) {
+        item {
+          Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+            AddonMerchSection(
+              candidates = uiState.addonCandidates,
+              onAddItem = onAddCatalogItem,
+            )
+          }
+        }
       }
 
+      // 5. 商城优惠券卡券包选择区
       item {
-        OutlinedTextField(
-          value = uiState.promoNote,
-          onValueChange = onUpdatePromoNote,
-          label = { Text("订单备注（选填）") },
-          placeholder = { Text("例如：需要 DevFest 纪念袋") },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("checkout_note_input"),
-          singleLine = true,
-        )
+        Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+          CouponTicketSection(
+            coupons = uiState.availableCoupons,
+            selectedCouponId = uiState.selectedCouponId,
+            onSelectCoupon = onSelectCoupon,
+          )
+        }
       }
 
+      // 6. 订单备注 + 快捷备注标签（用于测试软键盘 IME Inset）
       item {
-        PriceBreakdownCard(uiState = uiState)
+        Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+          OrderNoteCard(
+            promoNote = uiState.promoNote,
+            onUpdatePromoNote = onUpdatePromoNote,
+            onAppendQuickTag = onAppendQuickNoteTag,
+          )
+        }
       }
 
+      // 7. 结算金额明细小票卡片
       item {
-        Spacer(modifier = Modifier.height(88.dp))
+        Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+          PriceBreakdownReceiptCard(uiState = uiState)
+        }
+      }
+
+      // 预留底部空白，但在 Edge-to-Edge 下仍需配合 navigationBarsPadding + imePadding
+      item {
+        Spacer(modifier = Modifier.height(84.dp))
       }
     }
 
@@ -140,35 +197,84 @@ internal fun CheckoutContent(
         .align(Alignment.BottomCenter)
         .fillMaxWidth()
         .testTag("checkout_bottom_bar"),
-      tonalElevation = 6.dp,
-      shadowElevation = 8.dp,
+      color = MaterialTheme.colorScheme.surface,
+      tonalElevation = 8.dp,
+      shadowElevation = 12.dp,
     ) {
+      val totalSaved =
+        (uiState.breakdown.subtotal - uiState.breakdown.finalPayable).coerceAtLeast(0.0)
+
       Row(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(horizontal = 16.dp, vertical = 12.dp),
+          .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        Column {
+        // 左侧：全选按钮
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          modifier = Modifier.clickable(onClick = onToggleSelectAll),
+        ) {
+          MallCheckCircle(
+            checked = uiState.isAllSelected,
+            onClick = onToggleSelectAll,
+          )
           Text(
-            text = "应付总额",
-            style = MaterialTheme.typography.labelMedium,
+            text = "全选",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-          Text(
-            text = formatCurrency(uiState.breakdown.finalPayable),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.testTag("checkout_final_payable_text"),
-          )
         }
-        Button(
-          onClick = { /* 触发订单提交 */ },
-          modifier = Modifier.testTag("checkout_submit_button"),
+
+        // 右侧：合计金额 + 立即结算胶囊按钮
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-          Text("立即结算")
+          Column(horizontalAlignment = Alignment.End) {
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+              Text(
+                text = "合计:",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+              )
+              Text(
+                text = formatYen(uiState.breakdown.finalPayable),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = if (uiState.breakdown.finalPayable < 0) MaterialTheme.colorScheme.error else CoralPrice,
+                modifier = Modifier.testTag("checkout_final_payable_text"),
+              )
+            }
+            Text(
+              text = "共省 ${formatYen(totalSaved)}",
+              style = MaterialTheme.typography.labelSmall,
+              color = CoralPrice,
+            )
+          }
+
+          Button(
+            onClick = onSubmitOrder,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(
+              containerColor = BrandBlue,
+              contentColor = Color.White,
+            ),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 11.dp),
+            modifier = Modifier.testTag("checkout_submit_button"),
+          ) {
+            Text(
+              text = "立即结算(${uiState.totalSelectedCount})",
+              style = MaterialTheme.typography.labelLarge,
+              fontWeight = FontWeight.Bold,
+            )
+          }
         }
       }
     }
@@ -176,124 +282,82 @@ internal fun CheckoutContent(
 }
 
 @Composable
-private fun CartItemCard(
-  item: CartItem,
-  onDecrease: () -> Unit,
-  onIncrease: () -> Unit,
+private fun OrderNoteCard(
+  promoNote: String,
+  onUpdatePromoNote: (String) -> Unit,
+  onAppendQuickTag: (String) -> Unit,
 ) {
+  val quickTags = listOf(
+    "需要 GDG 上海限定手提袋",
+    "附赠 Android Bot 徽章",
+    "会场下午茶时段自提",
+  )
+
   Card(
     modifier = Modifier.fillMaxWidth(),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-  ) {
-    Row(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(14.dp),
-      horizontalArrangement = Arrangement.SpaceBetween,
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      Column(modifier = Modifier.weight(1f)) {
-        Text(
-          text = item.name,
-          style = MaterialTheme.typography.titleMedium,
-          fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-          text = "${formatCurrency(item.unitPrice)} × ${item.quantity}",
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
-      Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-      ) {
-        OutlinedButton(onClick = onDecrease) { Text("-") }
-        Text(
-          text = item.quantity.toString(),
-          style = MaterialTheme.typography.bodyLarge,
-          fontWeight = FontWeight.Bold,
-        )
-        OutlinedButton(onClick = onIncrease) { Text("+") }
-      }
-    }
-  }
-}
-
-@Composable
-private fun CouponSelectorSection(
-  coupons: List<CouponOption>,
-  selectedCouponId: String,
-  onSelectCoupon: (String) -> Unit,
-) {
-  Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-    Text(
-      text = "选择优惠券",
-      style = MaterialTheme.typography.titleSmall,
-      fontWeight = FontWeight.SemiBold,
-    )
-    coupons.forEach { coupon ->
-      FilterChip(
-        selected = coupon.id == selectedCouponId,
-        onClick = { onSelectCoupon(coupon.id) },
-        label = { Text(coupon.label) },
-        modifier = Modifier.fillMaxWidth(),
-      )
-    }
-  }
-}
-
-@Composable
-private fun PriceBreakdownCard(uiState: CheckoutUiState) {
-  Card(
-    modifier = Modifier.fillMaxWidth(),
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    shape = RoundedCornerShape(16.dp),
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
   ) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
-        .padding(16.dp),
+        .padding(14.dp),
       verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-      Text(
-        text = "价格明细",
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-      )
-      PriceRow("商品原价小计", formatCurrency(uiState.breakdown.subtotal))
-      PriceRow("满 ¥200 打 8 折后小计", formatCurrency(uiState.breakdown.discountedSubtotal))
-      PriceRow("优惠券抵扣", "-${formatCurrency(uiState.breakdown.couponApplied)}")
-      HorizontalDivider()
-      PriceRow(
-        label = "最终应付金额",
-        value = formatCurrency(uiState.breakdown.finalPayable),
-        bold = true,
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        Text(
+          text = "订单备注与定制心愿",
+          style = MaterialTheme.typography.titleSmall,
+          fontWeight = FontWeight.Bold,
+        )
+        Text(
+          text = "点击标签快捷填入",
+          style = MaterialTheme.typography.labelSmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+      ) {
+        quickTags.forEach { tag ->
+          Surface(
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shape = RoundedCornerShape(50),
+            modifier = Modifier.clickable { onAppendQuickTag(tag) },
+          ) {
+            Text(
+              text = "+ $tag",
+              style = MaterialTheme.typography.labelSmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant,
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            )
+          }
+        }
+      }
+
+      OutlinedTextField(
+        value = promoNote,
+        onValueChange = onUpdatePromoNote,
+        label = { Text("订单备注（选填）") },
+        placeholder = { Text("例如：需要 GDG DevFest Shanghai 纪念纸袋") },
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+          .fillMaxWidth()
+          .testTag("checkout_note_input"),
+        singleLine = true,
       )
     }
   }
 }
-
-@Composable
-private fun PriceRow(label: String, value: String, bold: Boolean = false) {
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.SpaceBetween,
-  ) {
-    Text(
-      text = label,
-      style = MaterialTheme.typography.bodyMedium,
-      fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-    )
-    Text(
-      text = value,
-      style = MaterialTheme.typography.bodyMedium,
-      fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-    )
-  }
-}
-
-private fun formatCurrency(amount: Double): String =
-  String.format(Locale.US, "¥%.2f", amount)
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

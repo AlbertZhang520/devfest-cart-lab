@@ -1,8 +1,8 @@
-# DevFest 2026 Workshop — `devfest-cart-lab` 动手实验指南
+# GDG DevFest Shanghai 2026 Workshop — `devfest-cart-lab` 动手实验指南
 
-欢迎来到 **DevFest 2026：用 Android CLI、Skills 和 Harness 落地 Agentic Engineering** 15 分钟动手实战环节！
+欢迎来到 **GDG DevFest Shanghai 2026：用 Android CLI、Skills 和 Harness 落地 Agentic Engineering** 15 分钟动手实战环节！
 
-在这个精简的 Jetpack Compose 购物车结算工程中，你将亲手体验如何**从「人肉复制报错的传话筒」切换为「定义验收标准的架构师」**，让 Coding Agent 在本地工具链闭环中自主完成多轮修复与验证。
+在这个复刻真实电商体验的 **GDG DevFest Shanghai 官方周边商城结算工程** 中，你将亲手体验如何**从「人肉复制报错的传话筒」切换为「定义验收标准的架构师」**，让 Coding Agent 在本地工具链闭环中自主完成多轮修复与验证。
 
 ---
 

@@ -18,22 +18,40 @@ package com.example.devfestcartlab.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-//Start - Partial Color List
+// Brand & E-Commerce Palette (Google Store + Modern Mall style)
+val BrandBlue = Color(0xFF1A73E8)
+val BrandBlueDark = Color(0xFF1557B0)
+val BrandBlueContainer = Color(0xFFE8F0FE)
+val OnBrandBlueContainer = Color(0xFF0D3B7A)
 
-//Light Colors
-val primaryLight = Color(0xFF00506E)
-val primaryContainerLight = Color(0xFF23759B)
-val secondaryLight = Color(0xFF486271)
-val tertiaryLight = Color(0xFF613A73)
+val CoralPrice = Color(0xFFFF3B30)
+val CoralPriceDark = Color(0xFFFF6961)
+val CoralContainer = Color(0xFFFFECEB)
+val OnCoralContainer = Color(0xFF8C1D18)
 
+val PromoAmber = Color(0xFFFF8F00)
+val PromoAmberContainer = Color(0xFFFFF8E1)
+val AndroidGreen = Color(0xFF00A86B)
+val AndroidGreenContainer = Color(0xFFE6F7F0)
 
-//Dark Colors
-val primaryDark = Color(0xFF87CFF9)
-val primaryContainerDark = Color(0xFF005C7D)
-val secondaryDark = Color(0xFFB0CADC)
-val tertiaryDark = Color(0xFFE6B5F8)
+// Light Surface Hierarchy
+val MallBackgroundLight = Color(0xFFF4F6FA)
+val MallSurfaceLight = Color(0xFFFFFFFF)
+val MallSurfaceLowLight = Color(0xFFF8FAFD)
+val MallSurfaceContainerLight = Color(0xFFEEF2F7)
+val MallTextPrimaryLight = Color(0xFF111827)
+val MallTextSecondaryLight = Color(0xFF6B7280)
+val MallOutlineLight = Color(0xFFE5E7EB)
 
-//End - Partial Color List
+// Dark Surface Hierarchy
+val MallBackgroundDark = Color(0xFF0E1117)
+val MallSurfaceDark = Color(0xFF171B24)
+val MallSurfaceLowDark = Color(0xFF1D222D)
+val MallSurfaceContainerDark = Color(0xFF252B38)
+val MallTextPrimaryDark = Color(0xFFF3F4F6)
+val MallTextSecondaryDark = Color(0xFF9CA3AF)
+val MallOutlineDark = Color(0xFF2E3646)
+
 
 /*
 

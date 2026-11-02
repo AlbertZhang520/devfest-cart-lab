@@ -1,13 +1,13 @@
 <journey name="Checkout Edge-to-Edge & Coupon Verification">
   <description>
-    验证购物车结算页（CheckoutScreen）优惠券切换算价与底部「立即结算」按钮可见性
+    验证 GDG DevFest Shanghai 官方周边商城结算页（CheckoutScreen）优惠券切换算价与底部「立即结算」按钮可见性
   </description>
   <actions>
     <action>
-      Verify that "DevFest 购物车结算" and "立即结算" button are visible on the screen and not off-screen
+      Verify that "DevFest 2026 官方周边商城" and "立即结算" button are visible on the screen and not off-screen
     </action>
     <action>
-      Tap the "DevFest 免单神券 -¥300" chip
+      Tap the "DevFest 讲师免单券" card
     </action>
     <action>
       Verify that the final payable amount displays "¥0.00" and never shows a negative number
